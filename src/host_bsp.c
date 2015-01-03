@@ -90,13 +90,15 @@ int bsp_init(const char* _e_name,
 
 int spmd_epiphany()
 {
+    printf("SPMD_EPIPHANY\n");
     // Start the program
     e_start_group(&state.dev);
 
     // sleep for 1.0 seconds
     usleep(100000); //10^6 microseconds
 
-    // @abe: er zijn geen bools in C! voorlopig uitgecomment
+    printf("Started group and slept 1 second\n");
+    // loop until program finishes
 	int i,j,counter,tmp, done;
 	done=0;
 	while(!done) {
@@ -110,8 +112,9 @@ int spmd_epiphany()
 					counter++;
 			}
 		}
-		if(counter == state.nprocs) {
-			host_sync();
+		if(counter == state.nprocs) { //sync if needed
+            printf("counter == state.nprocs\n");
+			_host_sync();
 
 			tmp=STATE_CONTINUE;
 			for(i=0; i<state.platform.rows; i++) {
@@ -216,18 +219,23 @@ void _mem_sync() {
         }
     }
     if(!new_vars) {
+        printf("No registration!\n");
         return; // No registration took place; we are done
     }
-
+    printf("We DO NOW register!\n");
+    
+    for(i=0; i<2*state.nprocs; i++){
+        printf("regmap[%i]=%i",i%state.nprocs,(int)(((void**)REGISTERMAP_ADDRESS)[i]));
+    }
     // Broadcast registermap_buffer to registermap 
-    void** buf = (void**) malloc(sizeof(void*)*state.nprocs);
-    e_read(&state.registermap_buffer, 0u, 0u, (off_t) 0, buf, sizeof(void*)*state.nprocs);
+    //void* buf = (void*) malloc(sizeof(void*)*state.nprocs);//TODO, this stinks! edited stuff
+    //e_read(&state.registermap_buffer, 0u, 0u, (off_t) 0, &buf, sizeof(void*)*state.nprocs);
     for(i = 0; i < state.platform.rows; ++i) {
         for(j = 0; j < state.platform.cols; ++j) {
             e_write(&state.dev,
                     i, j,
                     (off_t)(REGISTERMAP_ADDRESS + state.num_vars_registered * state.nprocs),
-                    buf,
+                    &state.registermap_buffer,//&buf
                     (size_t)(state.nprocs * sizeof(void*)));
         }
     }
